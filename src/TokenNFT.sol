@@ -3,13 +3,12 @@ pragma solidity 0.8.30;
 
 import {ERC721} from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-contract ToekenNFT is ERC721, Ownable {
-
+contract TokenNFT is ERC721, Ownable {
     // ==================== State Varibales ====================
     uint256 private _tokenId;
     string private baseURI;
-
 
     // ==================== External Functions ====================
 
@@ -29,6 +28,6 @@ contract ToekenNFT is ERC721, Ownable {
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
-        return string(abi.encodePacked(baseURI, tokenId, ".json"));
+        return string.concat(baseURI,Strings.toString(tokenId),".json");
     }
 }

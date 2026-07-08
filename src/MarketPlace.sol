@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity 0.8.30;
 
-
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-
-contract MarketPlace{
-
-    
-
+contract MarketPlace {
     // ==================== Erros  ====================
     error NFTMarketPlace__NotOwner();
     error NFTMarketPlace_TokenIsListed();
@@ -27,22 +22,18 @@ contract MarketPlace{
     mapping(address => mapping(uint256 => Listing)) private listings;
 
     // ==================== Events ====================
-    event TokenListed(
-        address indexed nftAddress,
-        uint256 indexed tokenId,
-        uint256 indexed tokenPrice,
-        address seller);
+    event TokenListed(address indexed nftAddress, uint256 indexed tokenId, uint256 indexed tokenPrice, address seller);
 
     // ==================== Modifiers  ====================
-    modifier onlyOwner(address nftAddress,uint256 tokenId) {
-        if(IERC721(nftAddress).ownerOf(tokenId) != msg.sender){
+    modifier onlyOwner(address nftAddress, uint256 tokenId) {
+        if (IERC721(nftAddress).ownerOf(tokenId) != msg.sender) {
             revert NFTMarketPlace__NotOwner();
         }
         _;
     }
-    
+
     // ==================== Externla Functions  ====================
-        /**
+    /**
      * @notice Lists an NFT for sale on the marketplace.
      * @dev
      * - Caller must own the NFT (`onlyOwner` modifier).
@@ -58,28 +49,28 @@ contract MarketPlace{
      * @custom:error NFTMarketPlace__TokenNotApproved Thrown if NFT is not approved for the marketplace.
      * @custom:error NFTMarketPlace__TokenAddressInvalid Thrown Error if address of NFT is 0x0000000000....
      */
-    function listingNFT(address nftAddress,uint256 _tokenId,uint256 _price) external  onlyOwner(msg.sender,_tokenId){
-        
-        if(nftAddress == address(0)){
+    function listingNFT(address nftAddress, uint256 _tokenId, uint256 _price) external onlyOwner(msg.sender, _tokenId) {
+        if (nftAddress == address(0)) {
             revert NFTMarketPlace__TokenAddressInvalid();
         }
-        if (_price == 0){
+        if (_price == 0) {
             revert NFTMarketPlace__TokenValueCantBeZero();
         }
-        
-        if(listings[nftAddress][_tokenId].price != 0){
+
+        if (listings[nftAddress][_tokenId].price != 0) {
             revert NFTMarketPlace_TokenIsListed();
         }
 
-        if (IERC721(nftAddress).getApproved(_tokenId) != address(this) && !IERC721(nftAddress).isApprovedForAll(msg.sender, address(this))) {
+        if (
+            IERC721(nftAddress).getApproved(_tokenId) != address(this)
+                && !IERC721(nftAddress).isApprovedForAll(msg.sender, address(this))
+        ) {
             revert NFTMarketPlace__TokenNotApproved();
         }
-        
-        
+
         listings[nftAddress][_tokenId].seller = msg.sender;
         listings[nftAddress][_tokenId].price = _price;
 
-        emit TokenListed(nftAddress,_tokenId,_price,msg.sender);
+        emit TokenListed(nftAddress, _tokenId, _price, msg.sender);
     }
-
 }
