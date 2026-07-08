@@ -65,4 +65,23 @@ contract TokenNftTest is Test {
 
         assertTrue(keccak256(bytes(secondeUri)) == keccak256(bytes(getSecondeuri)));
     }
+
+    function testWithdraw_revert_NotOwner() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user));
+        vm.prank(user);
+        token.withdraw();
+    }
+
+    function testWithdraw() public {
+        vm.deal(address(token), 1 ether);
+
+        uint256 balanceBefore = owner.balance;
+
+        vm.prank(owner);
+        token.withdraw();
+
+        uint256 balanceAfter = owner.balance;
+
+        assertEq(balanceAfter + balanceBefore, 1 ether);
+    }
 }

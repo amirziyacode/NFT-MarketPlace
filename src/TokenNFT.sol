@@ -30,4 +30,8 @@ contract TokenNFT is ERC721, Ownable {
         _requireOwned(tokenId);
         return string.concat(baseURI, Strings.toString(tokenId), ".json");
     }
+
+    function withdraw() public onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
 }

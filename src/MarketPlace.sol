@@ -16,6 +16,9 @@ contract MarketPlace is ReentrancyGuard {
     error NFTMarketPlace__IncorrectPrice();
     error NFTMarketPlace__CanNotBuy_OwnToken();
     error NFTMarketPlace__SellerPaymentFailed();
+    error NFTMarketPlace__FeeTransferFailed();
+    error NFTMarketPlace__NotFeeOwner();
+    error NFTMarketPlace__NotZero();
 
     // ==================== Type Declarations  ====================
     struct Listing {
@@ -28,17 +31,17 @@ contract MarketPlace is ReentrancyGuard {
     mapping(address => mapping(uint256 => Listing)) private listings;
     uint256 private fee = 25; // 2.5 %
 
+    address payable public immutable i_feesOwner;
+
     // ==================== Events ====================
     event TokenListed(address indexed nftAddress, uint256 indexed tokenId, uint256 indexed tokenPrice, address seller);
     event TokenBuyer(address indexed nftAddress, uint256 indexed tokenId, address indexed buyer, uint256 tokenPrice);
 
-    event UpdateListingPrice(address indexed nftAddress,uint256 indexed tokenId,address indexed seller,uint256 newPrice);
-
-    event ListingCanceled(
-        address indexed nftAddress,
-        uint256 indexed tokenId,
-        address indexed seller
+    event UpdateListingPrice(
+        address indexed nftAddress, uint256 indexed tokenId, address indexed seller, uint256 newPrice
     );
+
+    event ListingCanceled(address indexed nftAddress, uint256 indexed tokenId, address indexed seller);
     // ==================== Modifiers  ====================
     modifier onlyOwner(address nftAddress, uint256 tokenId) {
         if (IERC721(nftAddress).ownerOf(tokenId) != msg.sender) {
@@ -47,7 +50,18 @@ contract MarketPlace is ReentrancyGuard {
         _;
     }
 
+    modifier onlyFeeOwner() {
+        if (msg.sender != i_feesOwner) {
+            revert NFTMarketPlace__NotFeeOwner();
+        }
+        _;
+    }
+
     // ==================== Externla Functions  ====================
+
+    constructor(address payable _feesOwner) {
+        i_feesOwner = _feesOwner;
+    }
 
     /**
      * @notice Lists an NFT for sale on the marketplace.
@@ -126,21 +140,28 @@ contract MarketPlace is ReentrancyGuard {
             revert NFTMarketPlace__TokenIsNotListed();
         }
 
+        // Calculate fees
+        uint256 feesAcquiredByContract = (listing.price * fee) / 1000;
+        uint256 priceAfterFee = listing.price - feesAcquiredByContract;
+
         delete listings[_nftAddress][_tokenId];
 
         // transfer NFT
         IERC721(_nftAddress).safeTransferFrom(listing.seller, msg.sender, _tokenId);
 
+        (bool feePaid,) = i_feesOwner.call{value: feesAcquiredByContract}("");
+
+        if (!feePaid) {
+            revert NFTMarketPlace__FeeTransferFailed();
+        }
         // send money for seller
-        (bool sellerPaid,) = payable(listing.seller).call{value: msg.value}("");
+        (bool sellerPaid,) = payable(listing.seller).call{value: priceAfterFee}("");
         if (!sellerPaid) {
             revert NFTMarketPlace__SellerPaymentFailed();
         }
 
         emit TokenBuyer(_nftAddress, _tokenId, msg.sender, listing.price);
     }
-
-
 
     /**
      * @notice Purchases cancel listed NFT from the marketplace.
@@ -150,17 +171,16 @@ contract MarketPlace is ReentrancyGuard {
      * @param _nftAddress The contract address of the ERC721 NFT.
      * @custom:error NFTMarketPlace__TokenIsNotListed Thrown if the NFT is not listed for sale.
      */
-    function cancelListing(address _nftAddress,uint256 _tokenId) external  onlyOwner(_nftAddress,_tokenId) {
-        
+    function cancelListing(address _nftAddress, uint256 _tokenId) external onlyOwner(_nftAddress, _tokenId) {
         Listing memory listing = listings[_nftAddress][_tokenId];
 
-        if(listing.price == 0){
+        if (listing.price == 0) {
             revert NFTMarketPlace__TokenIsNotListed();
         }
 
         delete listings[_nftAddress][_tokenId];
 
-        emit ListingCanceled(_nftAddress,_tokenId,listing.seller);
+        emit ListingCanceled(_nftAddress, _tokenId, listing.seller);
     }
 
     /**
@@ -171,23 +191,38 @@ contract MarketPlace is ReentrancyGuard {
      * @param _nftAddress The contract address of the ERC721 NFT.
      * @custom:error NFTMarketPlace__TokenIsNotListed Thrown if the NFT is not listed for sale.
      */
-    function updatePriceListing(address _nftAddress,uint256 _tokenId,uint256 _newPrice) external  onlyOwner(_nftAddress,_tokenId){
-        
+    function updatePriceListing(address _nftAddress, uint256 _tokenId, uint256 _newPrice)
+        external
+        onlyOwner(_nftAddress, _tokenId)
+    {
         Listing storage listing = listings[_nftAddress][_tokenId];
 
-
-        if(listing.price == 0){
+        if (listing.price == 0) {
             revert NFTMarketPlace__TokenIsNotListed();
         }
 
-        if(_newPrice == 0){
+        if (_newPrice == 0) {
             revert NFTMarketPlace__IncorrectPrice();
         }
 
         listing.price = _newPrice;
 
-        emit UpdateListingPrice(_nftAddress,_tokenId,listing.seller,_newPrice);
+        emit UpdateListingPrice(_nftAddress, _tokenId, listing.seller, _newPrice);
     }
 
-
+    /**
+     * @notice Updates the marketplace fee percentage.
+     * @dev
+     * - Only callable by the current `feesOwner` (see `onlyFeeOwner` modifier).
+     * - `newFees` must be greater than zero.
+     * - Fees are stored as a whole number representing a percentage (e.g., 5 = 5%).
+     * @param newFees The new marketplace fee percentage to set.
+     * @custom:error NFTMarketPlace__NotZero Thrown if `newFees` is zero.
+     */
+    function changeFees(uint256 newFees) external onlyFeeOwner {
+        if (newFees == 0) {
+            revert NFTMarketPlace__NotZero();
+        }
+        fee = newFees;
+    }
 }
