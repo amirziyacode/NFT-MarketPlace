@@ -28,6 +28,6 @@ contract TokenNFT is ERC721, Ownable {
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
-        return string.concat(baseURI,Strings.toString(tokenId),".json");
+        return string.concat(baseURI, Strings.toString(tokenId), ".json");
     }
 }

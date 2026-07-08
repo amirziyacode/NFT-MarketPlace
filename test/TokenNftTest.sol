@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity 0.8.30;
 
-import {Test,console} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {TokenNFT} from "src/TokenNFT.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
@@ -19,13 +19,7 @@ contract TokenNftTest is Test {
     }
 
     function testMintToken_revertNotOwner() public {
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Ownable.OwnableUnauthorizedAccount.selector,
-                user
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user));
 
         vm.prank(user);
 
@@ -34,11 +28,10 @@ contract TokenNftTest is Test {
 
     function testMintToken_And_ReturnUri() public {
         vm.prank(owner);
-        
-        
+
         uint256 tokenId = token.safeMint(user);
 
-        assertEq(tokenId,0);
+        assertEq(tokenId, 0);
 
         string memory actulaUri = "ipfs://QmExample0.json";
 
@@ -47,21 +40,18 @@ contract TokenNftTest is Test {
         console.log(actulaUri);
         console.log(uri);
 
-        assertTrue(
-         keccak256(bytes(actulaUri)) == keccak256(bytes(uri)));
+        assertTrue(keccak256(bytes(actulaUri)) == keccak256(bytes(uri)));
     }
 
-    function testMintMultyNFT_And_ReturnUri() public{
+    function testMintMultyNFT_And_ReturnUri() public {
         vm.prank(owner);
         uint256 tokenId = token.safeMint(user);
 
         vm.prank(owner);
         uint256 tokenIdTwo = token.safeMint(user);
 
-
-        assertEq(tokenId,0);
-        assertEq(tokenIdTwo,1);
-
+        assertEq(tokenId, 0);
+        assertEq(tokenIdTwo, 1);
 
         string memory firstUir = "ipfs://QmExample0.json";
 
@@ -71,11 +61,8 @@ contract TokenNftTest is Test {
 
         string memory getSecondeuri = token.tokenURI(1);
 
-        assertTrue(
-         keccak256(bytes(firstUir)) == keccak256(bytes(getFirturi)));
+        assertTrue(keccak256(bytes(firstUir)) == keccak256(bytes(getFirturi)));
 
-        assertTrue(
-         keccak256(bytes(secondeUri)) == keccak256(bytes(getSecondeuri)));
-
+        assertTrue(keccak256(bytes(secondeUri)) == keccak256(bytes(getSecondeuri)));
     }
 }
