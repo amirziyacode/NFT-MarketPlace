@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import {IERC2981} from "openzeppelin-contracts/contracts/interfaces/IERC2981.sol";
 
 contract MarketPlace is ReentrancyGuard {
     IERC721 tokenNFT;
@@ -19,6 +20,9 @@ contract MarketPlace is ReentrancyGuard {
     error NFTMarketPlace__FeeTransferFailed();
     error NFTMarketPlace__NotFeeOwner();
     error NFTMarketPlace__NotZero();
+    error NFTMarketPlace__royaltyAmountTransferFailed();
+    error NFTMarketPlace__WithdrawFaild();
+    error NFTMarketPlace__NotValidAddress_To_Withdraw();
 
     // ==================== Type Declarations  ====================
     struct Listing {
@@ -29,13 +33,23 @@ contract MarketPlace is ReentrancyGuard {
     // ==================== State Variables  ====================
 
     mapping(address => mapping(uint256 => Listing)) private listings;
+
+    mapping (address => uint256) private proceeds;
+
     uint256 private fee = 25; // 2.5 %
 
     address payable public immutable i_feesOwner;
 
     // ==================== Events ====================
     event TokenListed(address indexed nftAddress, uint256 indexed tokenId, uint256 indexed tokenPrice, address seller);
-    event TokenBuyer(address indexed nftAddress, uint256 indexed tokenId, address indexed buyer, uint256 tokenPrice);
+    event TokenBuyer(
+        address indexed nftAddress,
+        uint256 indexed tokenId,
+        address indexed buyer,
+        uint256 feePrice,
+        uint256 marketplaceFee,
+        uint256 royaltyAmount
+    );
 
     event UpdateListingPrice(
         address indexed nftAddress, uint256 indexed tokenId, address indexed seller, uint256 newPrice
@@ -111,6 +125,7 @@ contract MarketPlace is ReentrancyGuard {
      * - NFT must be currently listed (`price > 0`).
      * - Caller cannot be the seller of the NFT.
      * - Fees are calculated as a percentage of the sale price and sent to `feesOwner`.
+     * - Royalty  are calculated as a percentage of the sale price and sent to owner of NFT
      * - Remaining payment is sent to the seller.
      * - State (listings mapping) is updated before making external calls to prevent reentrancy risks.
      * - NFT is transferred to the buyer after payments are processed.
@@ -132,7 +147,7 @@ contract MarketPlace is ReentrancyGuard {
             revert NFTMarketPlace__CanNotBuy_OwnToken();
         }
 
-        if (msg.value <= 0 && listing.price != msg.value) {
+        if (listing.price != msg.value) {
             revert NFTMarketPlace__IncorrectPrice();
         }
 
@@ -140,27 +155,30 @@ contract MarketPlace is ReentrancyGuard {
             revert NFTMarketPlace__TokenIsNotListed();
         }
 
-        // Calculate fees
-        uint256 feesAcquiredByContract = (listing.price * fee) / 1000;
-        uint256 priceAfterFee = listing.price - feesAcquiredByContract;
+        // Calculate fees and  Royalty
+        uint256 marketplaceFee = (listing.price * fee) / 1000;
+
+        (address receiver, uint256 royaltyAmount) = IERC2981(_nftAddress).royaltyInfo(_tokenId, listing.price);
+
+        uint256 sellerAmount = listing.price - marketplaceFee - royaltyAmount;
+
 
         delete listings[_nftAddress][_tokenId];
+
 
         // transfer NFT
         IERC721(_nftAddress).safeTransferFrom(listing.seller, msg.sender, _tokenId);
 
-        (bool feePaid,) = i_feesOwner.call{value: feesAcquiredByContract}("");
+        // paid marketplaceFee
+        proceeds[i_feesOwner] +=  marketplaceFee;
 
-        if (!feePaid) {
-            revert NFTMarketPlace__FeeTransferFailed();
-        }
-        // send money for seller
-        (bool sellerPaid,) = payable(listing.seller).call{value: priceAfterFee}("");
-        if (!sellerPaid) {
-            revert NFTMarketPlace__SellerPaymentFailed();
-        }
+        // paid Royalty 
+        proceeds[receiver] += royaltyAmount; 
 
-        emit TokenBuyer(_nftAddress, _tokenId, msg.sender, listing.price);
+        // paid seller
+        proceeds[listing.seller] += sellerAmount;
+
+        emit TokenBuyer(_nftAddress, _tokenId, msg.sender, marketplaceFee, royaltyAmount, sellerAmount);
     }
 
     /**
@@ -224,5 +242,31 @@ contract MarketPlace is ReentrancyGuard {
             revert NFTMarketPlace__NotZero();
         }
         fee = newFees;
+    }
+
+     /**
+     * @notice withdraw all amount fee royaltyAmount and seller Amout.
+     * @dev
+     * for withdraw all fee and fee royaltyAmount and seller Amout 
+     * we calling call function and given zero to address of sender
+     * @custom:error NFTMarketPlace__WithdrawFaild Thrown if transfer faild
+     * @custom:error NFTMarketPlace__NotValidAddress_To_Withdraw if address is not in proceeds
+     * 
+     */
+    function withdrawProceeds() external nonReentrant {
+        uint256 amount = proceeds[msg.sender];
+
+        if (amount == 0){
+            revert NFTMarketPlace__NotValidAddress_To_Withdraw();
+        }
+
+        proceeds[msg.sender] = 0;
+        
+        (bool success,) = payable(msg.sender).call{value:amount}("");
+
+        if(!success){
+            revert NFTMarketPlace__WithdrawFaild();
+        }
+
     }
 }
