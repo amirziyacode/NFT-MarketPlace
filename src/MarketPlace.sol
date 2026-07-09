@@ -34,7 +34,7 @@ contract MarketPlace is ReentrancyGuard {
 
     mapping(address => mapping(uint256 => Listing)) private listings;
 
-    mapping (address => uint256) private proceeds;
+    mapping(address => uint256) private proceeds;
 
     uint256 private fee = 25; // 2.5 %
 
@@ -162,18 +162,16 @@ contract MarketPlace is ReentrancyGuard {
 
         uint256 sellerAmount = listing.price - marketplaceFee - royaltyAmount;
 
-
         delete listings[_nftAddress][_tokenId];
-
 
         // transfer NFT
         IERC721(_nftAddress).safeTransferFrom(listing.seller, msg.sender, _tokenId);
 
         // paid marketplaceFee
-        proceeds[i_feesOwner] +=  marketplaceFee;
+        proceeds[i_feesOwner] += marketplaceFee;
 
-        // paid Royalty 
-        proceeds[receiver] += royaltyAmount; 
+        // paid Royalty
+        proceeds[receiver] += royaltyAmount;
 
         // paid seller
         proceeds[listing.seller] += sellerAmount;
@@ -244,29 +242,28 @@ contract MarketPlace is ReentrancyGuard {
         fee = newFees;
     }
 
-     /**
+    /**
      * @notice withdraw all amount fee royaltyAmount and seller Amout.
      * @dev
-     * for withdraw all fee and fee royaltyAmount and seller Amout 
+     * for withdraw all fee and fee royaltyAmount and seller Amout
      * we calling call function and given zero to address of sender
      * @custom:error NFTMarketPlace__WithdrawFaild Thrown if transfer faild
      * @custom:error NFTMarketPlace__NotValidAddress_To_Withdraw if address is not in proceeds
-     * 
+     *
      */
     function withdrawProceeds() external nonReentrant {
         uint256 amount = proceeds[msg.sender];
 
-        if (amount == 0){
+        if (amount == 0) {
             revert NFTMarketPlace__NotValidAddress_To_Withdraw();
         }
 
         proceeds[msg.sender] = 0;
-        
-        (bool success,) = payable(msg.sender).call{value:amount}("");
 
-        if(!success){
+        (bool success,) = payable(msg.sender).call{value: amount}("");
+
+        if (!success) {
             revert NFTMarketPlace__WithdrawFaild();
         }
-
     }
 }

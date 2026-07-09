@@ -4,6 +4,8 @@ pragma solidity 0.8.30;
 import {Test, console} from "forge-std/Test.sol";
 import {TokenNFT} from "src/TokenNFT.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
+import {IERC721} from "openzeppelin-contracts/contracts/interfaces/IERC721.sol";
+import {IERC2981} from "openzeppelin-contracts/contracts/interfaces/IERC2981.sol";
 
 contract TokenNftTest is Test {
     TokenNFT private token;
@@ -83,5 +85,17 @@ contract TokenNftTest is Test {
         uint256 balanceAfter = owner.balance;
 
         assertEq(balanceAfter + balanceBefore, 1 ether);
+    }
+
+    function testSupportsERC721Interface() public view {
+        assertTrue(token.supportsInterface(type(IERC721).interfaceId));
+    }
+
+    function testSupportsERC2981Interface() public view {
+        assertTrue(token.supportsInterface(type(IERC2981).interfaceId));
+    }
+
+    function testDoesNotSupportInvalidInterface() public view {
+        assertFalse(token.supportsInterface(0xffffffff));
     }
 }
