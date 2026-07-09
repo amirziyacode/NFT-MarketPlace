@@ -16,11 +16,9 @@ contract MarketPlace is ReentrancyGuard {
     error NFTMarketPlace__TokenIsNotListed();
     error NFTMarketPlace__IncorrectPrice();
     error NFTMarketPlace__CanNotBuy_OwnToken();
-    error NFTMarketPlace__SellerPaymentFailed();
-    error NFTMarketPlace__FeeTransferFailed();
     error NFTMarketPlace__NotFeeOwner();
-    error NFTMarketPlace__NotZero();
-    error NFTMarketPlace__royaltyAmountTransferFailed();
+    error NFTMarketPlace__Not_FeebeZero();
+
     error NFTMarketPlace__WithdrawFaild();
     error NFTMarketPlace__NotValidAddress_To_Withdraw();
 
@@ -87,35 +85,34 @@ contract MarketPlace is ReentrancyGuard {
      * - Stores listing details in `listings` mapping and emits `TokenListed` event.
      * @param _tokenId The unique identifier for the NFT within its contract.
      * @param _price The sale price for the NFT in wei.
-     * @param nftAddress The contract address of the ERC721 NFT.
+     * @param _nftAddress The contract address of the ERC721 NFT.
      * @custom:error NFTMarketPlace__AlreadyListed Thrown if NFT is already listed.
      * @custom:error NFTMarketPlace__TokenValueCantBeZero Thrown if `tokenPrice` is zero.
      * @custom:error NFTMarketPlace__TokenNotApproved Thrown if NFT is not approved for the marketplace.
-     * @custom:error NFTMarketPlace__TokenAddressInvalid Thrown Error if address of NFT is 0x0000000000....
      */
-    function listingNFT(address nftAddress, uint256 _tokenId, uint256 _price) external onlyOwner(msg.sender, _tokenId) {
-        if (nftAddress == address(0)) {
-            revert NFTMarketPlace__TokenAddressInvalid();
-        }
+    function listingNFT(address _nftAddress, uint256 _tokenId, uint256 _price)
+        external
+        onlyOwner(_nftAddress, _tokenId)
+    {
         if (_price == 0) {
             revert NFTMarketPlace__TokenValueCantBeZero();
         }
 
-        if (listings[nftAddress][_tokenId].price != 0) {
+        if (listings[_nftAddress][_tokenId].price != 0) {
             revert NFTMarketPlace_TokenIsListed();
         }
 
         if (
-            IERC721(nftAddress).getApproved(_tokenId) != address(this)
-                && !IERC721(nftAddress).isApprovedForAll(msg.sender, address(this))
+            IERC721(_nftAddress).getApproved(_tokenId) != address(this)
+                && !IERC721(_nftAddress).isApprovedForAll(msg.sender, address(this))
         ) {
             revert NFTMarketPlace__TokenNotApproved();
         }
 
-        listings[nftAddress][_tokenId].seller = msg.sender;
-        listings[nftAddress][_tokenId].price = _price;
+        listings[_nftAddress][_tokenId].seller = msg.sender;
+        listings[_nftAddress][_tokenId].price = _price;
 
-        emit TokenListed(nftAddress, _tokenId, _price, msg.sender);
+        emit TokenListed(_nftAddress, _tokenId, _price, msg.sender);
     }
 
     /**
@@ -233,11 +230,11 @@ contract MarketPlace is ReentrancyGuard {
      * - `newFees` must be greater than zero.
      * - Fees are stored as a whole number representing a percentage (e.g., 5 = 5%).
      * @param newFees The new marketplace fee percentage to set.
-     * @custom:error NFTMarketPlace__NotZero Thrown if `newFees` is zero.
+     * @custom:error NFTMarketPlace__Not_FeebeZero Thrown if `newFees` is zero.
      */
     function changeFees(uint256 newFees) external onlyFeeOwner {
         if (newFees == 0) {
-            revert NFTMarketPlace__NotZero();
+            revert NFTMarketPlace__Not_FeebeZero();
         }
         fee = newFees;
     }
@@ -265,5 +262,15 @@ contract MarketPlace is ReentrancyGuard {
         if (!success) {
             revert NFTMarketPlace__WithdrawFaild();
         }
+    }
+
+    // ==================== Getter Functions ====================
+    
+    function getPriceOfLitstedToken(address _nftAddress,uint256 _tokenId) external view returns(uint256){
+        return listings[_nftAddress][_tokenId].price;
+    }
+
+    function getSellerOfLitstedToken(address _nftAddress,uint256 _tokenId) external view returns(address){
+        return listings[_nftAddress][_tokenId].seller;
     }
 }
