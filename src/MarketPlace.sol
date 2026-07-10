@@ -18,9 +18,9 @@ contract MarketPlace is ReentrancyGuard {
     error NFTMarketPlace__CanNotBuy_OwnToken();
     error NFTMarketPlace__NotFeeOwner();
     error NFTMarketPlace__Not_FeebeZero();
-
     error NFTMarketPlace__WithdrawFaild();
     error NFTMarketPlace__NotValidAddress_To_Withdraw();
+
 
     // ==================== Type Declarations  ====================
     struct Listing {
@@ -54,6 +54,10 @@ contract MarketPlace is ReentrancyGuard {
     );
 
     event ListingCanceled(address indexed nftAddress, uint256 indexed tokenId, address indexed seller);
+
+    event WithdrawProceeds(address indexed sender,uint256 indexed amount);
+
+    
     // ==================== Modifiers  ====================
     modifier onlyOwner(address nftAddress, uint256 tokenId) {
         if (IERC721(nftAddress).ownerOf(tokenId) != msg.sender) {
@@ -140,16 +144,15 @@ contract MarketPlace is ReentrancyGuard {
 
         Listing memory listing = listings[_nftAddress][_tokenId];
 
+        if (listing.price == 0) {
+            revert NFTMarketPlace__TokenIsNotListed();
+        }
         if (msg.sender == listing.seller) {
             revert NFTMarketPlace__CanNotBuy_OwnToken();
         }
 
         if (listing.price != msg.value) {
             revert NFTMarketPlace__IncorrectPrice();
-        }
-
-        if (listing.price == 0) {
-            revert NFTMarketPlace__TokenIsNotListed();
         }
 
         // Calculate fees and  Royalty
@@ -262,15 +265,25 @@ contract MarketPlace is ReentrancyGuard {
         if (!success) {
             revert NFTMarketPlace__WithdrawFaild();
         }
+
+        emit WithdrawProceeds(msg.sender,amount);
     }
 
     // ==================== Getter Functions ====================
-    
-    function getPriceOfLitstedToken(address _nftAddress,uint256 _tokenId) external view returns(uint256){
+
+    function getPriceOfLitstedToken(address _nftAddress, uint256 _tokenId) external view returns (uint256) {
         return listings[_nftAddress][_tokenId].price;
     }
 
-    function getSellerOfLitstedToken(address _nftAddress,uint256 _tokenId) external view returns(address){
+    function getSellerOfLitstedToken(address _nftAddress, uint256 _tokenId) external view returns (address) {
         return listings[_nftAddress][_tokenId].seller;
+    }
+
+    function getAmountOfProceeds(address _sender) external view returns (uint256) {
+        return proceeds[_sender];
+    }
+
+    function getFee() external view returns (uint256) {
+        return fee;
     }
 }
