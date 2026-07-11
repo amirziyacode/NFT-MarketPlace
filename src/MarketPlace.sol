@@ -21,7 +21,6 @@ contract MarketPlace is ReentrancyGuard {
     error NFTMarketPlace__WithdrawFaild();
     error NFTMarketPlace__NotValidAddress_To_Withdraw();
 
-
     // ==================== Type Declarations  ====================
     struct Listing {
         address seller;
@@ -55,9 +54,8 @@ contract MarketPlace is ReentrancyGuard {
 
     event ListingCanceled(address indexed nftAddress, uint256 indexed tokenId, address indexed seller);
 
-    event WithdrawProceeds(address indexed sender,uint256 indexed amount);
+    event WithdrawProceeds(address indexed sender, uint256 indexed amount);
 
-    
     // ==================== Modifiers  ====================
     modifier onlyOwner(address nftAddress, uint256 tokenId) {
         if (IERC721(nftAddress).ownerOf(tokenId) != msg.sender) {
@@ -266,7 +264,7 @@ contract MarketPlace is ReentrancyGuard {
             revert NFTMarketPlace__WithdrawFaild();
         }
 
-        emit WithdrawProceeds(msg.sender,amount);
+        emit WithdrawProceeds(msg.sender, amount);
     }
 
     // ==================== Getter Functions ====================

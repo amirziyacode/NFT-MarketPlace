@@ -247,22 +247,20 @@ contract MarketPlaceTest is Test {
     // ==================== withdrawProceeds  ====================
 
     function testWithdrawProceeds_revert_if_address_is_no_MonyeToSend() public {
-
         vm.expectRevert(MarketPlace.NFTMarketPlace__NotValidAddress_To_Withdraw.selector);
         market.withdrawProceeds();
     }
 
-
     /**
      * @dev
      * for pass this we should mint a token and listed on marketPlace now we are already do it in setUpFunction
-     * we list our nft in marketPalce and a buyyer buy this nft 
+     * we list our nft in marketPalce and a buyyer buy this nft
      * and we want to withraw all  the fee for fee_marketPlace
-     * and royalty evert time a buyyer buy it is send backe it 
-     * finaly we send a amount of priceOfNFT to seller and withdraw it 
+     * and royalty evert time a buyyer buy it is send backe it
+     * finaly we send a amount of priceOfNFT to seller and withdraw it
      */
 
-    function testWithdrawProceeds() ListingToken public {
+    function testWithdrawProceeds() public ListingToken {
         address buyer = makeAddr("buyer");
 
         vm.deal(buyer, 1 ether);
@@ -276,74 +274,65 @@ contract MarketPlaceTest is Test {
 
         uint256 expectSellerAmount = LISTING_PRICE - marketplaceFee - royaltyAmount;
 
-
         vm.prank(buyer);
         market.buyNFT{value: 0.1 ether}(tokenId, address(nft));
 
         // withdraw for user
         uint256 userBalanceBefore = user.balance; // 1 ether
 
+        vm.expectEmit(true, false, false, true);
 
-
-        vm.expectEmit(true,false,false,true);
-
-        emit MarketPlace.WithdrawProceeds(user,expectSellerAmount);
+        emit MarketPlace.WithdrawProceeds(user, expectSellerAmount);
 
         vm.prank(user);
         market.withdrawProceeds();
 
         uint256 userBalanceAfter = user.balance; // 1 ether + expectSellerAmount
 
-        assertEq(userBalanceAfter,userBalanceBefore + expectSellerAmount);
+        assertEq(userBalanceAfter, userBalanceBefore + expectSellerAmount);
 
         // withdraw for fee_market
 
         uint256 balanceFeeMarketBefor = address(fee_market).balance;
 
-        vm.expectEmit(true,false,false,true);
+        vm.expectEmit(true, false, false, true);
 
-        emit MarketPlace.WithdrawProceeds(fee_market,marketplaceFee);
+        emit MarketPlace.WithdrawProceeds(fee_market, marketplaceFee);
 
         vm.prank(fee_market);
         market.withdrawProceeds();
 
         uint256 balanceFeeMarketAfter = address(fee_market).balance;
 
-        assertEq(balanceFeeMarketAfter,marketplaceFee+balanceFeeMarketBefor);
+        assertEq(balanceFeeMarketAfter, marketplaceFee + balanceFeeMarketBefor);
 
         // withdraw the artist of NFT
 
         uint256 balanceReceiverBefore = address(receiver).balance;
-        
-        vm.expectEmit(true,false,false,true);
 
-        emit MarketPlace.WithdrawProceeds(receiver,royaltyAmount);
+        vm.expectEmit(true, false, false, true);
+
+        emit MarketPlace.WithdrawProceeds(receiver, royaltyAmount);
 
         vm.prank(receiver);
         market.withdrawProceeds();
 
         uint256 balanceReceiverAfter = address(receiver).balance;
 
-        assertEq(balanceReceiverAfter,balanceReceiverBefore + royaltyAmount);
+        assertEq(balanceReceiverAfter, balanceReceiverBefore + royaltyAmount);
     }
 
-
-    
     // ==================== Getter  ====================
-    
-    function testGetFee()  public  view{
-        assertEq(market.getFee(),25);
+
+    function testGetFee() public view {
+        assertEq(market.getFee(), 25);
     }
 
-    function test_GetPriceOfLitstedToken() public ListingToken{
-        assertEq(market.getPriceOfLitstedToken(address(nft),tokenId),LISTING_PRICE);
+    function test_GetPriceOfLitstedToken() public ListingToken {
+        assertEq(market.getPriceOfLitstedToken(address(nft), tokenId), LISTING_PRICE);
     }
 
-    function test_GeSellerOfLitstedToken() public ListingToken{
-        assertEq(market.getSellerOfLitstedToken(address(nft),tokenId),user);
+    function test_GeSellerOfLitstedToken() public ListingToken {
+        assertEq(market.getSellerOfLitstedToken(address(nft), tokenId), user);
     }
-
-
-
-
 }
