@@ -96,6 +96,22 @@ contract MarketPlaceTest is Test {
         assertEq(user, expectSeller);
     }
 
+    function testFuzz_ListingNFT_withAnyPrice(uint256 price) public {
+        vm.assume(price > 0);
+
+        vm.startPrank(user);
+
+        nft.approve(address(market), tokenId);
+
+        // check TokenListed Event
+        vm.expectEmit(true, false, false, true);
+        emit MarketPlace.TokenListed(address(nft), tokenId, LISTING_PRICE, user);
+
+        market.listingNFT(address(nft), tokenId, price);
+
+        vm.stopPrank();
+    }
+
     // ==================== Buy NFT  ====================
     function testBuyNFT_revert_invalidNFTAddress() public {
         vm.expectRevert(MarketPlace.NFTMarketPlace__TokenAddressInvalid.selector);
@@ -215,6 +231,13 @@ contract MarketPlaceTest is Test {
         market.updatePriceListing(address(nft), tokenId, newPrice);
 
         assertEq(market.getPriceOfLitstedToken(address(nft), tokenId), newPrice);
+    }
+
+    function testFuzz_UpdatePrice_withAnyPrice(uint256 newPrice) public ListingToken {
+        vm.assume(newPrice > 0);
+        
+        vm.prank(user);
+        market.updatePriceListing(address(nft), tokenId, newPrice);
     }
 
     // ==================== changeFees  ====================
